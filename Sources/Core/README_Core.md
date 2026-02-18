@@ -1,7 +1,7 @@
 # Aura Logic
 
 **Constraint-based Star Battle (Two-Not-Touch) Puzzle Engine**
-Developed by Vanta Studios.
+Developed by Logic and Chill.
 
 ## Core Rules
 1. **Two Stars Per Row**: Every row must contain exactly two stars.

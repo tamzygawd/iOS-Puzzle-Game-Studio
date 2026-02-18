@@ -6,23 +6,7 @@ import SwiftUI
 public struct ZenGridView: View {
     
     // MARK: - State Management
-    // For prototype purposes, let's simulate a 5x5 grid
-    @State private var gridState: [[CellStatus]] = Array(repeating: Array(repeating: .empty, count: 5), count: 5)
-    
-    // MARK: - Types
-    public enum CellStatus {
-        case empty      // Default
-        case marked     // Negative space ('X')
-        case star       // Goal element
-        
-        mutating func cycle() {
-            switch self {
-            case .empty: self = .star
-            case .star: self = .marked
-            case .marked: self = .empty
-            }
-        }
-    }
+    @ObservedObject var engine: AuraLogicEngine
     
     // MARK: - View
     public var body: some View {
@@ -49,7 +33,7 @@ public struct ZenGridView: View {
     
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("LEVEL 1")
+            Text(engine.currentLevel?.id.uppercased() ?? "LEVEL")
                 .font(ThemeEngine.Typography.body())
                 .foregroundColor(ThemeEngine.Palette.secondaryText)
             
@@ -61,15 +45,17 @@ public struct ZenGridView: View {
     }
     
     private var gridView: some View {
+        let gridSize = engine.currentLevel?.size ?? 5
+        
         // Optimized for iPhone size/aspect ratio
-        GeometryReader { geo in
-            let size = geo.size.width
-            let cellSize = (size - (4 * ThemeEngine.Layout.gridSpacing)) / 5
+        return GeometryReader { geo in
+            let totalWidth = geo.size.width
+            let cellSize = (totalWidth - (CGFloat(gridSize - 1) * ThemeEngine.Layout.gridSpacing)) / CGFloat(gridSize)
             
             VStack(spacing: ThemeEngine.Layout.gridSpacing) {
-                ForEach(0..<5) { row in
+                ForEach(0..<gridSize, id: \.self) { row in
                     HStack(spacing: ThemeEngine.Layout.gridSpacing) {
-                        ForEach(0..<5) { col in
+                        ForEach(0..<gridSize, id: \.self) { col in
                             cellView(row: row, col: col, size: cellSize)
                                 .onTapGesture {
                                     handleInteraction(row: row, col: col)
@@ -83,17 +69,20 @@ public struct ZenGridView: View {
     }
     
     private func cellView(row: Int, col: Int, size: CGFloat) -> some View {
-        ZStack {
+        let pos = GridPosition(row, col)
+        let content = engine.grid[pos] ?? .empty
+        
+        return ZStack {
             Rectangle()
                 .fill(ThemeEngine.Palette.grid)
                 .cornerRadius(4)
                 .frame(width: size, height: size)
             
             // Interaction Overlay
-            switch gridState[row][col] {
+            switch content {
             case .star:
                 starIcon(size: size * 0.6)
-            case .marked:
+            case .mark:
                 markedIcon(size: size * 0.3)
             case .empty:
                 EmptyView()
@@ -127,13 +116,13 @@ public struct ZenGridView: View {
             
             Spacer()
             
-            Text("Goal: 5 Stars")
+            Text("Goal: \(engine.currentLevel?.starsPerConstraint ?? 1) Stars")
                 .font(ThemeEngine.Typography.body())
                 .foregroundColor(ThemeEngine.Palette.secondaryText)
             
             Spacer()
             
-            Button(action: { /* Logic for restart */ }) {
+            Button(action: { engine.reset() }) {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.title2)
                     .foregroundColor(ThemeEngine.Palette.secondaryText)
@@ -143,15 +132,17 @@ public struct ZenGridView: View {
     
     // MARK: - Logic
     private func handleInteraction(row: Int, col: Int) {
+        let pos = GridPosition(row, col)
         withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
-            gridState[row][col].cycle()
+            engine.handleInput(at: pos)
         }
         
         // Haptic Feedback Loop
-        switch gridState[row][col] {
+        let content = engine.grid[pos] ?? .empty
+        switch content {
         case .star:
             HapticManager.shared.triggerStarPlaced()
-        case .marked:
+        case .mark:
             HapticManager.shared.triggerCellMarked()
         case .empty:
             HapticManager.shared.triggerCellMarked() // Subtle 'remove' click

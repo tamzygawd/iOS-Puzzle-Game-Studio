@@ -62,7 +62,7 @@ public enum GameState: Equatable {
 
 /// The view-agnostic core engine for Aura Logic.
 /// It manages game state and logic independently of the UI framework.
-public final class AuraLogicEngine {
+public final class AuraLogicEngine: ObservableObject {
     
     // MARK: - Published State
     
